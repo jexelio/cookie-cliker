@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>THE ARCHIVE // ACCESS TERMINAL</title>
+<style>
+  :root { color-scheme: dark; --bg:#07090d; --panel:#10151d; --line:#283342; --text:#e7edf5; --muted:#8e9aab; --green:#8cffb5; --red:#ff7272; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(ellipse at top, #14202a 0%, #080b10 48%, #050609 100%); color:var(--text); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; display:grid; place-items:center; padding:24px; }
+  .shell { width:min(760px,100%); }
+  .topline { display:flex; justify-content:space-between; gap:12px; color:var(--muted); font-size:11px; letter-spacing:.14em; margin:0 0 14px; }
+  .panel { border:1px solid var(--line); background:rgba(12,16,23,.94); box-shadow:0 24px 90px #0009; border-radius:14px; overflow:hidden; }
+  .bar { padding:13px 18px; background:#151d27; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:9px; font-size:12px; color:#cbd5e1; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#ff7272; box-shadow:0 0 12px #ff727255; }
+  .dot:nth-child(2) { background:#ffd36b; box-shadow:0 0 12px #ffd36b55; }
+  .dot:nth-child(3) { background:var(--green); box-shadow:0 0 12px #8cffb555; }
+  .bar .path { margin-left:auto; color:#7f8da0; }
+  .content { padding:clamp(22px,5vw,42px); }
+  .eyebrow { color:var(--green); font-size:11px; letter-spacing:.2em; margin:0 0 12px; }
+  h1 { font-size:clamp(25px,5vw,42px); line-height:1.1; letter-spacing:-.05em; margin:0 0 14px; }
+  p { color:#aeb9c8; line-height:1.65; font-size:13px; }
+  .warning { border-left:2px solid var(--green); padding:10px 14px; background:#8cffb50a; margin:24px 0; color:#cbd5e1; font-size:12px; line-height:1.6; }
+  label { display:block; color:#9aa8ba; font-size:11px; letter-spacing:.12em; margin:22px 0 8px; }
+  input { width:100%; border:1px solid #344255; background:#080c12; color:var(--text); padding:14px 15px; border-radius:8px; font:inherit; outline:none; }
+  input:focus { border-color:var(--green); box-shadow:0 0 0 3px #8cffb514; }
+  button { font:inherit; cursor:pointer; }
+  .primary { width:100%; border:1px solid var(--green); border-radius:8px; padding:14px; margin-top:12px; color:#07110b; background:var(--green); font-weight:800; letter-spacing:.08em; transition:transform .12s, filter .12s; }
+  .primary:hover { filter:brightness(1.08); } .primary:active { transform:scale(.99); }
+  .status { min-height:20px; color:var(--red); font-size:12px; margin-top:12px; }
+  .hidden { display:none !important; }
+  .gamehead { display:flex; justify-content:space-between; gap:14px; align-items:end; flex-wrap:wrap; }
+  .counter { font-size:clamp(30px,6vw,48px); color:var(--green); font-weight:800; letter-spacing:-.06em; }
+  .counter small { font-size:13px; color:#7f8da0; letter-spacing:0; font-weight:400; }
+  .track { height:7px; background:#202a36; border-radius:20px; overflow:hidden; margin:19px 0 8px; }
+  .fill { height:100%; width:0%; background:linear-gradient(90deg,#4edb91,var(--green)); transition:width .08s; }
+  .percent { display:flex; justify-content:space-between; color:#718096; font-size:11px; }
+  .cookie-zone { display:grid; place-items:center; padding:30px 0 18px; }
+  .cookie { border:1px solid #e2a86a66; border-radius:50%; width:clamp(150px,30vw,210px); aspect-ratio:1; display:grid; place-items:center; background:radial-gradient(circle at 32% 25%,#e9bc7d,#b9753c 68%,#784326); box-shadow:0 0 0 10px #b9753c0d,0 18px 40px #0008,inset -10px -12px 20px #60351c66; font-size:90px; user-select:none; transition:transform .07s; }
+  .cookie:active { transform:scale(.94) rotate(-3deg); }
+  .cookie:hover { filter:brightness(1.08); }
+  .hint { color:#718096; font-size:11px; text-align:center; }
+  .helper-panel { border:1px solid #222d3a; background:#0a1017; border-radius:8px; padding:14px; margin-top:18px; }
+  .helper-title { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; color:var(--green); font-size:11px; letter-spacing:.12em; margin-bottom:10px; }
+  .helper-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; }
+  .helper { border:1px solid #263342; border-radius:7px; padding:10px; background:#0c121a; color:#7f8da0; font-size:11px; line-height:1.5; }
+  .helper strong { display:block; color:#d9e4ef; font-size:12px; margin-bottom:3px; }
+  .helper.unlocked { border-color:#8cffb566; background:#8cffb508; }
+  .helper.unlocked strong { color:var(--green); }
+  .log { margin-top:22px; border:1px solid #222d3a; background:#080c12; border-radius:8px; padding:14px; min-height:76px; color:#8291a4; font-size:12px; line-height:1.7; }
+  .log strong { color:var(--green); font-weight:500; }
+  .success { text-align:center; padding:20px 0 4px; }
+  .keybox { border:1px dashed var(--green); background:#8cffb50b; color:var(--green); border-radius:8px; padding:18px; font-size:clamp(16px,3vw,22px); overflow-wrap:anywhere; margin:20px 0; }
+  .foot { text-align:center; color:#536174; font-size:10px; letter-spacing:.13em; margin-top:14px; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="topline"><span>COOKIE PROTOCOL // NO PASSWORD REQUIRED</span><span>NODE 02 / 10.0.0.7</span></div>
+  <section class="panel">
+    <div class="bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>ARCHIVE TERMINAL</span><span class="path">/cookie_protocol</span></div>
+    <div class="content">
+      <section id="game">
+        <div class="eyebrow">// PROTOCOL 10K INITIATED</div>
+        <div class="gamehead"><div><h1>MAKE. IT. CRUMBLE.</h1><p>One cookie. Ten thousand clicks. No shortcuts in spirit.</p></div><div class="counter"><span id="count">0</span> <small>/ 10,000</small></div></div>
+        <div class="track"><div class="fill" id="fill"></div></div>
+        <div class="percent"><span id="percent">0.00% COMPLETE</span><span id="remaining">10,000 REMAINING</span></div>
+        <div class="cookie-zone"><button id="cookie" class="cookie" aria-label="Click the cookie">🍪</button></div>
+        <div class="hint">CLICK THE COOKIE. HELPERS WILL JOIN THE OPERATION AS YOU PROGRESS.</div>
+        <div class="helper-panel">
+          <div class="helper-title"><span>// AUTOMATION CREW</span><span id="cps">0 CLICKS / SEC</span></div>
+          <div class="helper-list" id="helperList"></div>
+        </div>
+        <div class="log" id="log" aria-live="polite"><strong>[SYSTEM]</strong> Protocol loaded. Begin clicking, human.</div>
+      </section>
+
+      <section id="success" class="hidden success">
+        <div class="eyebrow">// PROTOCOL COMPLETE</div>
+        <h1>YOU HAVE WAY TOO MUCH FREE TIME.</h1>
+        <p>10,000 clicks recorded. The archive has yielded its secret.</p>
+        <div class="keybox" id="revealedPassword"></div>
+        <button class="primary" id="copyButton">COPY PASSWORD</button>
+        <p id="copyStatus" class="hint"></p>
+        <div class="warning">Next instruction: use this password where the puzzle told you to. The system is done with you. For now.</div>
+      </section>
+    </div>
+  </section>
+  <div class="foot">KEEP YOUR EYES OPEN // NOTHING IS HERE BY ACCIDENT</div>
+</main>
+<script>
+/* ===================== PUZZLE SETTINGS =====================
+   Change these two values before giving the site to your friend.
+   This single-file version is a fun puzzle, NOT secure authentication:
+   anyone who inspects the source code can discover these values.
+============================================================ */
+const PENDRIVE_PASSWORD = "xfghffgui"; // Revealed after 10,000 clicks
+const TARGET = 10000;
+const STORAGE_KEY = "archive_cookie_progress_v2";
+const helpers = [
+  { at: 10, rate: 1, name: 'Intern Clicker', detail: 'A very enthusiastic intern. +1 click/sec.' },
+  { at: 100, rate: 4, name: 'Cookie Assistant', detail: 'Finally has learned the job. +4 clicks/sec.' },
+  { at: 500, rate: 15, name: 'Automated Oven', detail: 'Bakes clicks at an alarming rate. +15 clicks/sec.' },
+  { at: 1500, rate: 40, name: 'Cookie Factory', detail: 'Questionable labor practices. +40 clicks/sec.' },
+  { at: 3500, rate: 100, name: 'Quantum Clicker', detail: 'Clicks before you even think about it. +100 clicks/sec.' }
+];
+
+const game = document.getElementById('game');
+const success = document.getElementById('success');
+const countEl = document.getElementById('count');
+const fill = document.getElementById('fill');
+const percent = document.getElementById('percent');
+const remaining = document.getElementById('remaining');
+const log = document.getElementById('log');
+const helperList = document.getElementById('helperList');
+const cpsEl = document.getElementById('cps');
+let clicks = Math.min(TARGET, Math.max(0, Number(localStorage.getItem(STORAGE_KEY)) || 0));
+let lastMilestone = 0;
+let autoRate = 0;
+
+const milestones = {
+  100: 'Warm-up complete. This is still a terrible use of your time.',
+  500: 'Five hundred. The cookie remains unimpressed.',
+  1000: '1,000 clicks. You could have learned a language by now. Maybe.',
+  2500: 'A quarter of the way there. The exit is a myth.',
+  5000: 'HALFWAY. Stretch your clicking finger, operative.',
+  7500: '75% complete. Surely the password is worth this.',
+  9999: 'One. More. Click. Do not fumble this.',
+  10000: 'TARGET REACHED. ACCESS KEY GENERATED.'
+};
+function addLog(message) { log.innerHTML = '<strong>[SYSTEM]</strong> ' + message; }
+function updateHelpers() {
+  autoRate = helpers.reduce((total, helper) => total + (clicks >= helper.at ? helper.rate : 0), 0);
+  cpsEl.textContent = autoRate.toLocaleString('en-US') + ' CLICKS / SEC';
+  helperList.innerHTML = helpers.map(helper => {
+    const unlocked = clicks >= helper.at;
+    return `<div class="helper ${unlocked ? 'unlocked' : ''}"><strong>${unlocked ? '✓ ' : '🔒 '}${helper.name}</strong>${unlocked ? helper.detail : `Unlocks at ${helper.at.toLocaleString('en-US')} clicks.`}</div>`;
+  }).join('');
+}
+function render() {
+  countEl.textContent = clicks.toLocaleString('en-US');
+  const pct = clicks / TARGET * 100;
+  fill.style.width = pct + '%';
+  percent.textContent = pct.toFixed(2) + '% COMPLETE';
+  remaining.textContent = (TARGET - clicks).toLocaleString('en-US') + ' REMAINING';
+  updateHelpers();
+}
+function saveProgress() { localStorage.setItem(STORAGE_KEY, String(clicks)); }
+function processProgress(previousClicks) {
+  for (const threshold of Object.keys(milestones).map(Number).sort((a,b) => a-b)) {
+    if (previousClicks < threshold && clicks >= threshold) addLog(milestones[threshold]);
+  }
+  const newlyUnlocked = helpers.find(helper => previousClicks < helper.at && clicks >= helper.at);
+  if (newlyUnlocked) addLog(`${newlyUnlocked.name} unlocked! Your crew now generates ${autoRate} clicks per second.`);
+  render();
+  if (clicks >= TARGET) finish();
+}
+function showGame() { game.classList.remove('hidden'); render(); if (clicks >= TARGET) finish(); }
+function finish() {
+  game.classList.add('hidden'); success.classList.remove('hidden');
+  document.getElementById('revealedPassword').textContent = PENDRIVE_PASSWORD;
+}
+document.getElementById('cookie').addEventListener('click', () => {
+  if (clicks >= TARGET) return;
+  const previous = clicks;
+  clicks = Math.min(TARGET, clicks + 1);
+  saveProgress();
+  processProgress(previous);
+  if (clicks % 100 === 0 && clicks < TARGET) addLog('Click count verified. Keep going.');
+});
+setInterval(() => {
+  if (clicks >= TARGET || autoRate <= 0) return;
+  const previous = clicks;
+  clicks = Math.min(TARGET, clicks + autoRate);
+  saveProgress();
+  processProgress(previous);
+}, 1000);
+document.getElementById('copyButton').addEventListener('click', async () => {
+  const status = document.getElementById('copyStatus');
+  try { await navigator.clipboard.writeText(PENDRIVE_PASSWORD); status.textContent = 'Password copied.'; }
+  catch { status.textContent = 'Clipboard blocked by browser. Select and copy the password above.'; }
+});
+render();
+if (clicks >= TARGET) finish();
+</script>
+</body>
+</html>
